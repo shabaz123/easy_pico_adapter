@@ -1,6 +1,8 @@
 # easy_pico_adapter
 
-The easy_i2c_adapter allows the user to communicate to I2C devices from a PC. The hardware interface is simply a Pi Pico board.
+The easy_i2c_adapter allows the user to communicate to I2C devices from a PC.
+
+The hardware interface is simply a Pi Pico board. Program it by holding down the BOOTSEL button on it, then plug the USB connector into the PC, then release the button. A USB drive letter appears on the PC. Drag-and-drop the file in the **pre_built_pico_binary** folder onto the drive letter. The firmware will be transferred within seconds, and will then begin execution. The green LED on the Pi Pico will dimly flicker, when the firmware is successfully running. 
 
 The communication can be controlled in two ways:
 
