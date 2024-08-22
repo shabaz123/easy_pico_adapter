@@ -14,6 +14,8 @@ Here is an example of interactive control from a serial terminal, demonstrating 
 
 <img width="100%" align="left" src="assets\i2c-example-interaction.png">
 
+Another example: type **tryaddr:0x0b** if you wish to see if a device exists at (say) address 0x0b.
+
 If you wish to use the M2M mode from Python, import from the **python_pc_interface** folder, the file called **easy_interface.py**. Here is an example of how it can be used:
 
 ```
@@ -30,6 +32,10 @@ buffer = adapter.i2c_read(0x50, 4)
 # printing data to the screen in a friendly hex+ASCII format
 from easy_interface import print_data
 print_data(buffer)
+
+# trying an I2C address to see if a device at address 0x0b exists
+# returns True if the I2C device is present
+result = adapter.i2c_try_address(0x0b)
 ```
 
 # Connection Diagram
