@@ -110,6 +110,15 @@ def m2m_mode(val):
             print(f"Error exiting M2M mode")
 
 
+# tries an I2C address, returns True if the address is found, False otherwise
+def i2c_try_address(addr):
+    cmd = f"tryaddr:0x{addr:02x}"
+    result = send_and_confirm(cmd)
+    if result == 1:
+        return True
+    else:
+        return False
+
 # sends an I2C write command to the adapter
 # addr: I2C address
 # byte1: first byte to send

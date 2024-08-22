@@ -160,6 +160,76 @@ void print_buf_m2m_bin(uint8_t *buf, uint16_t len) {
     putchar(M2M_RESPONSE_OK_CHAR);
 }
 
+// used only in bitbang mode!
+void pullup_gpio(uint8_t pin) {
+    // set the pin to be an input, with pull-up enabled
+    gpio_set_dir(pin, GPIO_IN);
+    gpio_pull_up(pin);
+}
+// used only in bitbang mode!
+void pulldown_gpio(uint8_t pin) {
+    // set the pin to be an output, set low
+    gpio_set_dir(pin, GPIO_OUT);
+    gpio_put(pin, 0);
+}
+// this function will switch into GPIO mode and bitbang the I2C address to see if the ACK is received
+// then it switches back to I2C mode
+// returns 1 if ACK received, 0 otherwise
+int bitbang_i2c_addr(unsigned int val) {
+    uint8_t ack;
+    uint8_t i;
+    uint8_t addr = (uint8_t) val;
+    gpio_init(I2C_SDA_PIN);
+    gpio_init(I2C_SCL_PIN);
+    pullup_gpio(I2C_SDA_PIN);
+    pullup_gpio(I2C_SCL_PIN);
+    // perform the I2C start condition
+    pulldown_gpio(I2C_SDA_PIN);
+    sleep_us(5);
+    pulldown_gpio(I2C_SCL_PIN);
+    sleep_us(5);
+    addr <<= 1; // left-shift the address by 1 bit
+    addr |= 1; // we want to do an I2C read
+    // send the address
+    for (i=0; i<8; i++) {
+        if (addr & 0x80) {
+            pullup_gpio(I2C_SDA_PIN);
+        } else {
+            pulldown_gpio(I2C_SDA_PIN);
+        }
+        sleep_us(5);
+        pullup_gpio(I2C_SCL_PIN);
+        sleep_us(5);
+        pulldown_gpio(I2C_SCL_PIN);
+        sleep_us(5);
+        addr <<= 1;
+    }
+    // now read the ACK bit
+    pullup_gpio(I2C_SDA_PIN);
+    sleep_us(5);
+    pullup_gpio(I2C_SCL_PIN);
+    sleep_us(5);
+    ack = gpio_get(I2C_SDA_PIN);
+    pulldown_gpio(I2C_SCL_PIN);
+    sleep_us(5);
+    // now release the I2C bus
+    pullup_gpio(I2C_SCL_PIN);
+    sleep_us(5);
+    pullup_gpio(I2C_SDA_PIN);
+    sleep_us(5);
+    // convert back to I2C mode
+    i2c_init(i2c_port, 100 * 1000);
+    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA_PIN);
+    gpio_pull_up(I2C_SCL_PIN);
+    if (ack==0) { // held low means the device is present
+        return 1;
+        } else {
+        return 0;
+    }
+}
+
 // scan_uart_input fill the uart_buffer until a newline is received
 // returns number of bytes if a newline is received, 0 otherwise
 int
@@ -273,6 +343,38 @@ int decode_token(char *token) {
         token_progress = TOKEN_PROGRESS_SEND;
         do_repeated_start = 1;
         return TOKEN_RESULT_OK;
+    }
+    if (strncmp(token, "tryaddr:", 8) == 0) {
+        if (strncmp(token, "tryaddr:0x", 10) == 0) {
+            // get i2c_addr in hex
+            sscanf(token, "tryaddr:0x%02X", &val);
+        } else {
+            // get i2c_addr in decimal
+            sscanf(token, "tryaddr:%d", &val);
+        }
+        retval = bitbang_i2c_addr(val);
+        if(m2m_resp) {
+            if (input_mode == MODE_ASCII) {
+                if (retval == 0) {
+                    putchar(M2M_RESPONSE_PROT_ERR_CHAR);
+                } else {
+                    putchar(M2M_RESPONSE_OK_CHAR);
+                }
+            } else {
+                // binary mode, todo
+            }
+        } else {
+            if (retval == 0) {
+                COL_RED;
+                printf("Protocol error! Does the I2C device exist?\n");
+                COL_RESET;
+            } else {
+                COL_BLUE;
+                printf("Device found at address 0x%02X\n", val);
+                COL_RESET;
+            }
+        }
+        return TOKEN_RESULT_LINE_COMPLETE;
     }
     if (strcmp(token, "send") == 0) {
         if (expected_num == 0) {
