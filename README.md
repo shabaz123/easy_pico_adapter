@@ -69,7 +69,7 @@ Optionally (but recommended) add pull-up resistors to the I2C SDA and SCL lines.
 
 The Easy I2C Adapter is powered from the USB connection. The red and orange connections in the diagram above are 5V and 3.3V outputs, which could be used for powering attached hardware.
 
-The connections labeled BOARD_ID in the diagram can be left disconneced, but, if you wish to use multiple Easy I2C Adapter boards, then you can short some of the BOARD_ID pins to ground, so that each board has a unique identifier. It is described next.
+The connections labeled BOARD_ID in the diagram can be left disconnected, but, if you wish to use multiple Easy I2C Adapter boards, then you can short some of the BOARD_ID pins to ground, so that each board has a unique identifier. It is described next.
 
 # Using Multiple Adapters
 You can connect up to eight Pi Pico boards, and control them all from the same Python code if you wish. Each will automatically get a separate COM port number automatically, so if you're using the interactive mode (i.e. user mode) then you'd simply open two instances of your serial comms software, open to each port.
