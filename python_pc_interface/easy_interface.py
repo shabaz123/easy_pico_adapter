@@ -61,7 +61,7 @@ def send_and_confirm(cmd, wait_period=cmd_wait_period):
 
 # finds the easy_adapter device by searching available COM ports.
 # this function is called automatically by init() so the user doesn't have to call it
-def find_device():
+def find_device(board=0):
     global adapter_port
     perm_error = 0
     ports = list_ports.comports()
@@ -76,10 +76,11 @@ def find_device():
             while ((time.time_ns() // 1000000) - now) < cmd_wait_period:
                 if ser.in_waiting > 0:
                     buffer += ser.read(ser.in_waiting)
-            if b"easy_adapter" in buffer:
+            if b"easy_adapter_" + str(board).encode() in buffer:
+            # if b"easy_adapter" in buffer:
                 found = 1
             if found == 1:
-                print(f"Found easy_adapter at port {port.device}")
+                print(f"Found easy_adapter_{board} at port {port.device}")
                 adapter_port = port.device
                 return port.device
             else:
@@ -95,7 +96,7 @@ def find_device():
         print("Permission error. Close any serial console that may be using the port")
         print("Try using sudo if you're using Linux")
     else:
-        print("No easy_adapter device found")
+        print(f"No easy_adapter_{board} device found")
     return None
 
 # enters or exits M2M mode, 1 for entering the mode, 0 for exiting
@@ -240,9 +241,52 @@ def i2c_read(addr, num_bytes):
         print("i2c_read was unsuccessful")
         return None
 
+# sets a GPIO pin to logic level 0 or 1
+# example, to set Pi Pico GPIO 5 to logic zero:
+# io_write(5, 0)
+def io_write(gpio_num, val):
+    cmd = f"iowrite:{gpio_num},{val}"
+    result = send_and_confirm(cmd)
+    if result != 1:
+        print(f"Error setting GPIO {gpio_num} to logic {val}")
+        return False
+    return True
+
+# reads a GPIO pin and returns the logic level
+# example, to read Pi Pico GPIO 5:
+# io_read(5)
+# returns -1 if the read was unsuccessful
+def io_read(gpio_num):
+    cmd = f"ioread:{gpio_num}"
+    buffer = send_command(cmd)
+    # check if the buffer contains the '.' character
+    if b"." not in buffer:
+        print(f"Error reading GPIO {gpio_num}")
+        return -1
+    if b"0." in buffer:
+        return 0
+    elif b"1." in buffer:
+        return 1
+    else:
+        return -1
+
 # this function is used to locate the easy_adapter, and to set it to M2M mode
-def init():
-    res = find_device()
+# the board value is between 0 and 7 (multiple easy_adapters can be connected to the PC)
+# the board value is set using certain GPIO pins shorted to ground 
+# on the easy adapter board (Pi Pico). ADDR[2..0] are GPIO [4..2] respectively
+# these GPIO pins float high normally, and are read once, when the easy adapter is powered on
+# since they float high, the default board value is 0
+# ADDR2  ADDR1  ADDR0   Address
+# 0      0      0       7
+# 0      0      1       6
+# 0      1      0       5
+# 0      1      1       4
+# 1      0      0       3
+# 1      0      1       2
+# 1      1      0       1
+# 1      1      1       0
+def init(board=0):
+    res = find_device(board)
     if res is None:
         return False
     m2m_mode(1)

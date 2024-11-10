@@ -1,6 +1,7 @@
 /******************************
  * main.c
- * rev 1.0 Jan 2021 shabaz
+ * rev 1.0 Aug 2024 shabaz
+ * rev 1.1 Nov 2024 shabaz
  * ****************************/
 
 #include <stdio.h>
@@ -14,6 +15,9 @@
 #define I2C_PORT_SELECTED 1
 #define I2C_SDA_PIN 14
 #define I2C_SCL_PIN 15
+#define BOARD_ADDR0_PIN 2
+#define BOARD_ADDR1_PIN 3
+#define BOARD_ADDR2_PIN 4
 #define MODE_ASCII 0
 #define MODE_BIN 1
 #define TOKEN_RESULT_ERROR 0
@@ -39,6 +43,7 @@ const uint8_t EOL_BIN_MAGIC[] = {0xBA, 0xDC, 0x0F, 0xFE, 0xE0, 0x0F, 0xF0, 0x0D}
 
 // global variables
 i2c_inst_t *i2c_port;
+uint8_t board_addr;
 uint8_t uart_buffer[305];
 uint16_t uart_buffer_index = 0;
 uint8_t input_mode = MODE_ASCII;
@@ -68,6 +73,55 @@ void i2c_setup(void) {
     gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(I2C_SDA_PIN);
     gpio_pull_up(I2C_SCL_PIN);
+}
+
+// returns the following addresses, depending on the state of the ADDR0 and ADDR1 pins:
+// ADDR2  ADDR1  ADDR0    Address
+// 0      0      0       0x07
+// 0      0      1       0x06
+// 0      1      0       0x05
+// 0      1      1       0x04
+// 1      0      0       0x03
+// 1      0      1       0x02
+// 1      1      0       0x01
+// 1      1      1       0x00
+uint8_t get_board_address(void) {
+    uint8_t addr = 0;
+    gpio_init(BOARD_ADDR0_PIN);
+    gpio_init(BOARD_ADDR1_PIN);
+    gpio_init(BOARD_ADDR2_PIN);
+    gpio_set_dir(BOARD_ADDR0_PIN, GPIO_IN);
+    gpio_set_dir(BOARD_ADDR1_PIN, GPIO_IN);
+    gpio_set_dir(BOARD_ADDR2_PIN, GPIO_IN);
+    gpio_pull_up(BOARD_ADDR0_PIN);
+    gpio_pull_up(BOARD_ADDR1_PIN);
+    gpio_pull_up(BOARD_ADDR2_PIN);
+    if (gpio_get(BOARD_ADDR0_PIN)) {
+        addr |= 0x01;
+    }
+    if (gpio_get(BOARD_ADDR1_PIN)) {
+        addr |= 0x02;
+    }
+    if (gpio_get(BOARD_ADDR2_PIN)) {
+        addr |= 0x04;
+    }
+    addr = 0x07 - addr;
+    return addr;
+}
+
+int check_ioport_valid(int p) {
+    int port_valid = 1;
+    if ((p < 0) || (p > 28)) {
+    port_valid = 0;
+    }
+    if ((p == BOARD_ADDR0_PIN) ||
+    (p == BOARD_ADDR1_PIN) ||
+    (p == BOARD_ADDR2_PIN) ||
+    (p == I2C_SDA_PIN) ||
+    (p == I2C_SCL_PIN)){
+        port_valid = 0;
+    }
+    return port_valid;
 }
 
 // print_buf_hex prints a buffer in hex format, up to 304 bytes
@@ -300,9 +354,11 @@ scan_uart_input(void) {
 
 int decode_token(char *token) {
     unsigned int val;
+    int ioport, ioval; // used for the iowrite and ioread commands
+    int port_valid;
     int retval = 0;
     if (strcmp(token, "device?") == 0) {
-        printf("easy_adapter\n\r");
+        printf("easy_adapter_%d\n\r", board_addr);
         led_hold_off = 1;
         // reset any state and variables
         token_progress = TOKEN_PROGRESS_NONE;
@@ -371,6 +427,62 @@ int decode_token(char *token) {
             } else {
                 COL_BLUE;
                 printf("Device found at address 0x%02X\n", val);
+                COL_RESET;
+            }
+        }
+        return TOKEN_RESULT_LINE_COMPLETE;
+    }
+    if (strncmp(token, "iowrite:", 8) == 0) {
+        sscanf(token, "iowrite:%d,%d", &ioport, &ioval);
+        port_valid = check_ioport_valid(ioport);
+        if (port_valid && ((ioval == 0) || (ioval == 1))) {
+            gpio_init(ioport);
+            gpio_set_dir(ioport, GPIO_OUT);
+            gpio_put(ioport, ioval);
+            if(m2m_resp) {
+                putchar(M2M_RESPONSE_OK_CHAR);
+            } else {
+                COL_BLUE;
+                printf("Port %d set to output %d\n", ioport, ioval);
+                COL_RESET;
+            }
+        } else {
+            if(m2m_resp) {
+                putchar(M2M_RESPONSE_ERR_CHAR);
+            } else {
+                COL_RED;
+                printf("Error, invalid IO port or value\n");
+                COL_RESET;
+            }
+        }
+        return TOKEN_RESULT_LINE_COMPLETE;
+    }
+    if (strncmp(token, "ioread:", 7) == 0) {
+        sscanf(token, "ioread:%d", &ioport);
+        port_valid = check_ioport_valid(ioport);
+        if (port_valid) {
+            gpio_init(ioport);
+            gpio_set_dir(ioport, GPIO_IN);
+            gpio_pull_up(ioport); // avoid floating input, so enable pull-up
+            ioval = gpio_get(ioport);
+            if(m2m_resp) {
+                if (ioval) {
+                    putchar('1');
+                } else {
+                    putchar('0');
+                }
+                putchar(M2M_RESPONSE_OK_CHAR);
+            } else {
+                COL_BLUE;
+                printf("Port %d read input as %d\n", ioport, ioval);
+                COL_RESET;
+            }
+        } else {
+            if(m2m_resp) {
+                putchar(M2M_RESPONSE_ERR_CHAR);
+            } else {
+                COL_RED;
+                printf("Error, invalid IO port\n");
                 COL_RESET;
             }
         }
@@ -562,6 +674,8 @@ main(void)
 {
     int numbytes;
     stdio_init_all();
+    sleep_ms(100);
+    board_addr = get_board_address();
     sleep_ms(3000);
     led_setup(); // initialize LED pin to be an output
     i2c_setup(); // configures the I2C pins accordingly
