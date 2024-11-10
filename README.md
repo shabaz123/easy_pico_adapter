@@ -6,7 +6,7 @@ The hardware interface is simply a Pi Pico board. Program it by holding down the
 
 The communication can be controlled in two ways:
 
-(1) Interactively, from a serial console/terminal. This is the user mode.
+(1) Interactively, from a serial console/terminal. This is the interactive (also known as user) mode.
 
 (2) Programmatically, via a programming language on the PC, such as Python. This is the machine-to-machine (M2M) mode. 
 
@@ -16,11 +16,18 @@ Here is an example of interactive control from a serial terminal, demonstrating 
 
 Another example: type **tryaddr:0x0b** if you wish to see if a device exists at (say) address 0x0b.
 
-You can also read/write any GPIO number on the Pi Pico; for example to GPIO#5, and write logic level 1 to GPIO6:
-ioread:5
-iowrite:6,1
+You can also read/write any GPIO number on the Pi Pico; for example to read GPIO#5 in interactive mode:
 
-If you wish to use the M2M mode from Python, import from the **python_pc_interface** folder, the file called **easyadapter.py**. Here is an example of how it can be used:
+```
+ioread:5
+```
+To write logic level 1 to GPIO6 in interactive mode:
+
+```
+iowrite:6,1
+```
+
+If you wish to use the M2M mode from Python, import from the **python_pc_interface** folder, the file called **easyadapter.py**. Here are examples of how it can be used:
 
 ```
 # sending data 0x01, 0x02, 0x03, 0x04 to I2C address 0x50
@@ -59,6 +66,8 @@ adapter.io_write(6, 1)
 Optionally (but recommended) add pull-up resistors to the I2C SDA and SCL lines. I used 10 kohm resistors.
 
 <img width="100%" align="left" src="assets\i2c-adapter-wiring-diag.jpg">
+
+The connections labeled BOARD_ID in the diagram can be left disconneced, but, if you wish to use multiple Easy I2C Adapter boards, then you can short some of the BOARD_ID pins to ground, so that each board has a unique identifier. It is described next.
 
 # Using Multiple Adapters
 You can connect up to eight Pi Pico boards, and control them all from the same Python code if you wish. Each will automatically get a separate COM port number automatically, so if you're using the interactive mode (i.e. user mode) then you'd simply open two instances of your serial comms software, open to each port.
