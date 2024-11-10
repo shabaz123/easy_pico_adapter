@@ -25,6 +25,7 @@ If you wish to use the M2M mode from Python, import from the **python_pc_interfa
 ```
 # sending data 0x01, 0x02, 0x03, 0x04 to I2C address 0x50
 # append hold=1 to the i2c_write parameters, to hold the I2C bus for I2C repeated starts.
+
 import easyadapter as ea
 adapter = ea.EasyAdapter()
 result = adapter.init(0)
