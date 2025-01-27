@@ -39,6 +39,11 @@ result = adapter.init(0)
 data = [0x01, 0x02, 0x03, 0x04]
 adapter.i2c_write(0x50, data[0], data[1:])
 
+# sending a single byte to address 0x70
+val = 0x01;
+address = 0x70;
+adapter.i2c_write(address, val, [])
+
 # reading four bytes from I2C address 0x50
 buffer = adapter.i2c_read(0x50, 4)
 
