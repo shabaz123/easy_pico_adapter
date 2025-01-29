@@ -48,8 +48,7 @@ adapter.i2c_write(address, val, [])
 buffer = adapter.i2c_read(0x50, 4)
 
 # printing data to the screen in a friendly hex+ASCII format
-from easy_interface import print_data
-print_data(buffer)
+adapter.print_data(buffer)
 
 # trying an I2C address to see if a device at address 0x0b exists
 # returns True if the I2C device is present
