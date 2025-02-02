@@ -1,5 +1,6 @@
 # Python module for interfacing via serial to an I2C adapter
 # requires pyserial
+# NOTE: This code is deprecated, use easyadapter.py instead.
 
 import serial  # Note: this is the pyserial module, NOT the serial module
 from serial.tools import list_ports
