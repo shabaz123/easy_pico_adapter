@@ -85,6 +85,7 @@ def find_device(board=0):
                 adapter_port = port.device
                 return port.device
             else:
+                print(f"Do not found device")
                 ser.close()
         except serial.SerialException as e:
             if "PermissionError" in str(e):
