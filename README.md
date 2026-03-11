@@ -1,4 +1,4 @@
-# easy_pico_adapter
+# i2c_usb_pi_pico_adapter
 
 The easy_i2c_adapter allows the user to communicate to I2C devices from a PC.
 
