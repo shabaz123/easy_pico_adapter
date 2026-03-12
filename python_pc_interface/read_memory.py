@@ -3,7 +3,8 @@ import os
 
 # --- Configuration ---
 # Define the range of I2C addresses to scan (from 0x08 to 0x77).
-I2C_ADDRESS_RANGE = range(0x08, 0x78)
+#I2C_ADDRESS_RANGE = range(0x08, 0x78)
+I2C_ADDRESS_RANGE = range(0x01, 0x80)
 
 # Define the number of bytes to read from each detected device.
 BYTES_TO_READ = 256
@@ -11,6 +12,9 @@ BYTES_TO_READ = 256
 # Define base output directory for saving files.
 # This will create a 'i2c_data_output' folder in the script's directory.
 OUTPUT_DIR = "i2c_data_output"
+
+#COM_Port = 0
+COM_Port = "COM15"
 
 # --- Helper Functions for File Operations ---
 
@@ -114,7 +118,10 @@ def main():
     adapter = ea.EasyAdapter()
 
     print("Initializing EasyAdapter...")
-    init_result = adapter.init(0) # '0' typically refers to the first adapter
+    # Two ways to initialize:
+    # 1. Auto-detect by board number: adapter.init(0)
+    # 2. Direct COM port: adapter.init("COM15")
+    init_result = adapter.init(COM_Port) # Using direct COM port
     if init_result:
         print("EasyAdapter initialized successfully.")
     else:
@@ -127,10 +134,12 @@ def main():
     print("\nScanning for I2C devices...")
     found_devices = []
     for address in I2C_ADDRESS_RANGE:
+        print(f"Trying address {hex(address)}...", end='\r')
         if adapter.i2c_try_address(address):
             print(f"Device found at I2C address: {hex(address)}")
             found_devices.append(address)
 
+    print()  # Clear the scanning line
     if not found_devices:
         print("No I2C devices found in the specified range.")
     else:
