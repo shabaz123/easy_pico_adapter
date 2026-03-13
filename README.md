@@ -1,8 +1,28 @@
-# easy_pico_adapter
+# i2c_usb_pi_pico_adapter
 
 The easy_i2c_adapter allows the user to communicate to I2C devices from a PC.
 
 The hardware interface is simply a Pi Pico board. Program it by holding down the BOOTSEL button on it, then plug the USB connector into the PC, then release the button. A USB drive letter appears on the PC. Drag-and-drop the file in the **pre_built_pico_binary** folder onto the drive letter. The firmware will be transferred within seconds, and will then begin execution. The green LED on the Pi Pico will dimly flicker, when the firmware is successfully running. 
+
+## Features
+
+- 🔌 **Dual Control Modes** - Interactive terminal or programmatic Python control
+- 🔍 **I2C Operations** - Read, write, address scanning, repeated starts
+- ⚡ **GPIO Control** - Read/write any GPIO pin on the Pico
+- 🔢 **Multiple Adapters** - Support for up to 8 Pico boards simultaneously
+- 💾 **Memory Backup/Restore** - Utility scripts for I2C EEPROM backup in Intel HEX format
+- 🐍 **Python API** - Complete `EasyAdapter` class with extensive I2C device database
+- 📡 **Pre-built Firmware** - Ready-to-use .uf2 file included
+
+## Quick Links
+
+- [Connection Diagram](#connection-diagram)
+- [Using Multiple Adapters](#using-multiple-adapters)
+- [Using GPIO](#using-gpio)
+- [Utility Scripts (Backup/Restore I2C Memory)](#utility-scripts)
+- [API Documentation](#api-documentation)
+
+## Control Modes
 
 The communication can be controlled in two ways:
 
@@ -139,4 +159,125 @@ result = adapter.init(0)
 adapter.io_write(6,1)
 adapter.io_read(6)
 ```
+
+# Utility Scripts
+
+The **python_pc_interface** folder includes two powerful utility scripts for backing up and restoring I2C device memory (such as EEPROMs).
+
+## Reading I2C Device Memory (read_memory.py)
+
+The `read_memory.py` script automatically scans the I2C bus for devices and saves their data to files in Intel HEX format.
+
+**Features:**
+- Scans I2C addresses from 0x08 to 0x77
+- Reads 256 bytes from each detected device
+- Saves data in both `.txt` (human-readable) and `.hex` (Intel HEX) formats
+- Creates files named by I2C address (e.g., `i2c_device_0x50.hex`)
+- Output saved to `i2c_data_output/` directory
+
+**Usage:**
+```bash
+cd python_pc_interface
+python read_memory.py
+```
+
+**Example Output:**
+```
+Initializing EasyAdapter...
+EasyAdapter initialized successfully.
+
+Scanning for I2C devices...
+Device found at I2C address: 0x50
+Device found at I2C address: 0x51
+
+--- Found 2 Device(s) ---
+Device: 0x50
+Attempting to read 256 bytes...
+00: 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 : ................
+Data from 0x50 saved to i2c_data_output/i2c_device_0x50.txt
+Data from 0x50 saved to i2c_data_output/i2c_device_0x50.hex in Intel HEX format.
+```
+
+**Configuration:**
+Edit the script to customize:
+- `I2C_ADDRESS_RANGE` - Range of addresses to scan (default: 0x08 to 0x77)
+- `BYTES_TO_READ` - Number of bytes to read per device (default: 256)
+- `OUTPUT_DIR` - Output directory name (default: "i2c_data_output")
+
+## Writing I2C Device Memory (write_memory.py)
+
+The `write_memory.py` script writes Intel HEX files back to I2C devices using page-write operations with acknowledge polling.
+
+**Features:**
+- Reads Intel HEX files from `i2c_data_output/` directory
+- Automatically detects target I2C address from filename
+- Uses page-write operations (16-byte pages for M24C01 EEPROM)
+- Implements acknowledge polling for write cycle completion
+- Verifies device presence before writing
+
+**Usage:**
+```bash
+cd python_pc_interface
+python write_memory.py
+```
+
+**Example Output:**
+```
+Initializing EasyAdapter...
+EasyAdapter initialized successfully.
+
+Found 2 .hex file(s) in 'i2c_data_output'. Attempting to write data...
+
+--- Processing i2c_device_0x50.hex (Target I2C Address: 0x50) ---
+Checking for device at I2C address: 0x50
+Device found at 0x50. Attempting to write 128 bytes in 16-byte page chunks...
+  Writing 16 bytes to Reg 0x00 (Page Write)...
+  Page written successfully. Total bytes written: 16/128
+  Writing 16 bytes to Reg 0x10 (Page Write)...
+  Page written successfully. Total bytes written: 32/128
+...
+Successfully wrote all 128 bytes to device 0x50.
+```
+
+**Configuration:**
+Edit the script to customize:
+- `INPUT_DIR` - Directory containing .hex files (default: "i2c_data_output")
+- `EEPROM_PAGE_SIZE` - Page size for write operations (default: 16 bytes)
+
+**Important Notes:**
+- Page size should match your I2C device specifications (e.g., M24C01 = 16 bytes, AT24C256 = 64 bytes)
+- The script includes ~500ms timeout for acknowledge polling after each page write
+- Ensure correct I2C address is in the filename (e.g., `i2c_device_0x50.hex`)
+
+## Typical Workflow
+
+**Backup an I2C device:**
+```bash
+python read_memory.py
+# Creates i2c_data_output/i2c_device_0x50.hex
+```
+
+**Modify the hex file** (optional) using a hex editor or text editor
+
+**Restore to the same or different device:**
+```bash
+python write_memory.py
+# Writes the .hex file back to the device
+```
+
+**Clone multiple devices:**
+1. Read from source device (creates .hex file)
+2. Connect different device at same I2C address
+3. Run write script to program it with identical data
+
+# API Documentation
+
+For complete Python API reference and firmware command reference, see **[API_readme.md](API_readme.md)**.
+
+This includes:
+- Complete Python `EasyAdapter` class documentation
+- All I2C, GPIO, and utility method references
+- Firmware command syntax and responses
+- M2M protocol details
+- Example code snippets
 

@@ -67,7 +67,33 @@ class EasyAdapter:
     
     # finds the easy_adapter device by searching available COM ports.
     # this function is called automatically by init() so the user doesn't have to call it
+    # board: can be either an int (board number) or a string (direct COM port like "COM15")
     def find_device(self, board=0):
+        # If board is a string, treat it as a direct COM port specification
+        if isinstance(board, str):
+            port_name = board
+            try:
+                ser = serial.Serial(port_name, 115200, timeout=0.2)
+                ser.write(self.txterm + b"device?" + self.txterm)
+                buffer = bytes()
+                now = time.time_ns() // 1000000
+                while ((time.time_ns() // 1000000) - now) < self.cmd_wait_period:
+                    if ser.in_waiting > 0:
+                        buffer += ser.read(ser.in_waiting)
+                if b"easy_adapter" in buffer:
+                    print(f"Found easy_adapter at port {port_name}")
+                    self.adapter_port = port_name
+                    ser.close()
+                    return port_name
+                else:
+                    ser.close()
+                    print(f"Device at {port_name} did not respond as easy_adapter")
+                    return None
+            except Exception as e:
+                print(f"Error accessing {port_name}: {e}")
+                return None
+        
+        # Original behavior: search for easy_adapter by board number
         perm_error = 0
         ports = list_ports.comports()
         for port in ports:
@@ -289,6 +315,8 @@ class EasyAdapter:
     # 1      0      1       2
     # 1      1      0       1
     # 1      1      1       0
+    # Initializes the adapter
+    # board: can be either an int (board number like 0) or a string (COM port like "COM15")
     def init(self, board=0):
         res = self.find_device(board)
         if res is None:
